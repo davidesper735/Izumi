@@ -30,16 +30,16 @@ function increment(data, action, userId) {
 }
 
 const acciones = {
-  hug:   { descripcion: 'Abraza a alguien',   target: true,  msg: (a, b) => `💞 **${a}** abraza a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} abrazo${n !== 1 ? 's' : ''}.`,     boton: 'Abrazar de vuelta',   emoji: '🤗' },
-  kiss:  { descripcion: 'Besa a alguien',      target: true,  msg: (a, b) => `💋 **${a}** le da un beso a **${b}**`,   counter: (b, n) => `${b} ha recibido ${n} beso${n !== 1 ? 's' : ''}.`,       boton: 'Besar de vuelta',     emoji: '😘' },
-  pat:   { descripcion: 'Acaricia a alguien',  target: true,  msg: (a, b) => `👋 **${a}** le da palmaditas a **${b}**`, counter: (b, n) => `${b} ha recibido ${n} caricia${n !== 1 ? 's' : ''}.`,    boton: 'Acariciar de vuelta', emoji: '🥰' },
-  slap:  { descripcion: 'Abofetea a alguien',  target: true,  msg: (a, b) => `👋 **${a}** abofetea a **${b}**`,        counter: (b, n) => `${b} ha recibido ${n} bofetada${n !== 1 ? 's' : ''}.`,   boton: 'Abofetear de vuelta', emoji: '😤' },
-  poke:  { descripcion: 'Pincha a alguien',    target: true,  msg: (a, b) => `👉 **${a}** pincha a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} pinch${n !== 1 ? 'azos' : 'azo'}.`, boton: 'Pinchar de vuelta',   emoji: '😏' },
-  bite:  { descripcion: 'Muerde a alguien',    target: true,  msg: (a, b) => `😬 **${a}** muerde a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} mordid${n !== 1 ? 'as' : 'a'}.`,   boton: 'Morder de vuelta',    emoji: '😈' },
-  wave:  { descripcion: 'Saluda a alguien',    target: true,  msg: (a, b) => `👋 **${a}** saluda a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} saludo${n !== 1 ? 's' : ''}.`,     boton: 'Saludar de vuelta',   emoji: '😊' },
-  cry:   { descripcion: 'Llora',               target: false, msg: (a)    => `😢 **${a}** está llorando...`,           counter: (b, n) => `${b} ha llorado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '😭' },
-  blush: { descripcion: 'Te sonrojas',         target: false, msg: (a)    => `😳 **${a}** se sonroja`,                 counter: (b, n) => `${b} se ha sonrojado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,  boton: null,                  emoji: '🌸' },
-  dance: { descripcion: 'Baila',               target: false, msg: (a)    => `💃 **${a}** está bailando`,              counter: (b, n) => `${b} ha bailado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '🎶' },
+  hug:   { descripcion: 'Abraza a alguien',   target: true,  msg: (a, b) => `**${a}** abraza a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} abrazo${n !== 1 ? 's' : ''}.`,     boton: 'Abrazar de vuelta',   emoji: '' },
+  kiss:  { descripcion: 'Besa a alguien',      target: true,  msg: (a, b) => `**${a}** le da un beso a **${b}**`,   counter: (b, n) => `${b} ha recibido ${n} beso${n !== 1 ? 's' : ''}.`,       boton: 'Besar de vuelta',     emoji: '' },
+  pat:   { descripcion: 'Acaricia a alguien',  target: true,  msg: (a, b) => `**${a}** le da palmaditas a **${b}**`, counter: (b, n) => `${b} ha recibido ${n} caricia${n !== 1 ? 's' : ''}.`,    boton: 'Acariciar de vuelta', emoji: '' },
+  slap:  { descripcion: 'Abofetea a alguien',  target: true,  msg: (a, b) => `**${a}** abofetea a **${b}**`,        counter: (b, n) => `${b} ha recibido ${n} bofetada${n !== 1 ? 's' : ''}.`,   boton: 'Abofetear de vuelta', emoji: '' },
+  poke:  { descripcion: 'Pincha a alguien',    target: true,  msg: (a, b) => `**${a}** pincha a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} pinch${n !== 1 ? 'azos' : 'azo'}.`, boton: 'Pinchar de vuelta',   emoji: '' },
+  bite:  { descripcion: 'Muerde a alguien',    target: true,  msg: (a, b) => `**${a}** muerde a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} mordid${n !== 1 ? 'as' : 'a'}.`,   boton: 'Morder de vuelta',    emoji: '' },
+  wave:  { descripcion: 'Saluda a alguien',    target: true,  msg: (a, b) => `**${a}** saluda a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} saludo${n !== 1 ? 's' : ''}.`,     boton: 'Saludar de vuelta',   emoji: '' },
+  cry:   { descripcion: 'Llora',               target: false, msg: (a)    => `**${a}** está llorando...`,           counter: (b, n) => `${b} ha llorado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '' },
+  blush: { descripcion: 'Te sonrojas',         target: false, msg: (a)    => `**${a}** se sonroja`,                 counter: (b, n) => `${b} se ha sonrojado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,  boton: null,                  emoji: '' },
+  dance: { descripcion: 'Baila',               target: false, msg: (a)    => `**${a}** está bailando`,              counter: (b, n) => `${b} ha bailado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '' },
 };
 
 const builder = new SlashCommandBuilder()
@@ -63,7 +63,7 @@ async function sendInteraction(interaction, sub, autor, target) {
   const data = loadData();
 
   if (target && target.id === autor.id) {
-    return interaction.reply({ content: '❌ No puedes hacerte eso a ti mismo.', ephemeral: true });
+    return interaction.reply({ content: 'No puedes hacerte eso a ti mismo.', ephemeral: true });
   }
 
   await interaction.deferReply();
@@ -131,7 +131,7 @@ module.exports = {
 
     // Solo el target original puede responder
     if (interaction.user.id !== originalAutorId && interaction.user.id !== parts[3]) {
-      return interaction.reply({ content: '❌ Solo el usuario mencionado puede responder.', ephemeral: true });
+      return interaction.reply({ content: 'Solo el usuario mencionado puede responder.', ephemeral: true });
     }
 
     // El que responde es ahora el autor, y el autor original es el target
