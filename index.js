@@ -1,7 +1,9 @@
 require('dotenv').config();
+require("./src/database/database");
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+
 
 const client = new Client({
   intents: [
