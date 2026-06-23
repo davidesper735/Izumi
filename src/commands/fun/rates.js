@@ -22,9 +22,10 @@ module.exports = {
   },
 
   async run(context) {
-    const cosa = context.args[0];
-    const porcentaje = Math.floor(Math.random() * 101);
+    const cosa = context.isSlash ? context.args[0] : context.args.join(' ');
+    if (!cosa) return context.reply({ content: 'Escribe algo para calificar.', flags: 64 });
 
+    const porcentaje = Math.floor(Math.random() * 101);
     const barra = Math.round(porcentaje / 10);
     const llena = '█'.repeat(barra);
     const vacia = '░'.repeat(10 - barra);

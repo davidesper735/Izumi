@@ -28,7 +28,8 @@ module.exports = {
   },
 
   async run(context) {
-    const [u1, u2] = context.args;
+    const u1 = context.isSlash ? context.args[0] : context.resolveUser(0);
+    const u2 = context.isSlash ? context.args[1] : context.resolveUser(1);
 
     if (!u1 || !u2) return context.reply({ content: 'Debes mencionar dos usuarios.', flags: 64 });
     if (u1.id === u2.id) return context.reply({ content: 'No puedes shippearte contigo mismo.', flags: 64 });

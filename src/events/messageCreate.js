@@ -13,6 +13,29 @@ function getPrefix(guildId) {
   }
 }
 
+function resolveUser(arg, guild) {
+  if (!arg) return null;
+  // Mencion <@123> o <@!123>
+  const mentionMatch = arg.match(/^<@!?(\d+)>$/);
+  if (mentionMatch) return guild.client.users.cache.get(mentionMatch[1]) || null;
+  // ID directo
+  if (/^\d+$/.test(arg)) return guild.client.users.cache.get(arg) || null;
+  // Username
+  return guild.members.cache.find(m =>
+    m.user.username.toLowerCase() === arg.toLowerCase()
+  )?.user || null;
+}
+
+function resolveMember(arg, guild) {
+  if (!arg) return null;
+  const mentionMatch = arg.match(/^<@!?(\d+)>$/);
+  if (mentionMatch) return guild.members.cache.get(mentionMatch[1]) || null;
+  if (/^\d+$/.test(arg)) return guild.members.cache.get(arg) || null;
+  return guild.members.cache.find(m =>
+    m.user.username.toLowerCase() === arg.toLowerCase()
+  ) || null;
+}
+
 module.exports = {
   name: 'messageCreate',
   async execute(message) {
@@ -35,10 +58,14 @@ module.exports = {
       member: message.member,
       args,
       isSlash: false,
+      // Resuelve usuarios y members desde args
+      resolveUser: (index) => resolveUser(args[index], message.guild),
+      resolveMember: (index) => resolveMember(args[index], message.guild),
       reply: (content) => {
         if (typeof content === 'string') return message.reply(content);
-        if (content.embeds) return message.reply({ embeds: content.embeds });
-        return message.reply(content);
+        // Ignorar flags en prefix (no aplican a mensajes normales)
+        const { flags, ...rest } = typeof content === 'object' ? content : {};
+        return message.reply(rest);
       }
     };
 

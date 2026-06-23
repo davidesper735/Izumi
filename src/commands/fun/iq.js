@@ -14,7 +14,7 @@ module.exports = {
       channel: interaction.channel,
       user: interaction.user,
       member: interaction.member,
-      args: [interaction.options.getUser('usuario') || interaction.user],
+      args: [interaction.options.getUser('usuario')],
       isSlash: true,
       reply: (content) => interaction.reply(content)
     };
@@ -22,7 +22,10 @@ module.exports = {
   },
 
   async run(context) {
-    const usuario = context.args[0] || context.user;
+    const usuario = context.isSlash
+      ? (context.args[0] || context.user)
+      : (context.resolveUser(0) || context.user);
+
     const seed = Number(BigInt(usuario.id) % 201n);
 
     let comentario;
