@@ -1,9 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// Ruta del archivo de contadores
 const dataPath = path.join(__dirname, '..', '..', '..', 'data', 'interact.json');
 
 function loadData() {
@@ -18,10 +17,6 @@ function saveData(data) {
   fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
 }
 
-function getCount(data, action, userId) {
-  return data?.[action]?.[userId] || 0;
-}
-
 function increment(data, action, userId) {
   if (!data[action]) data[action] = {};
   data[action][userId] = (data[action][userId] || 0) + 1;
@@ -30,16 +25,16 @@ function increment(data, action, userId) {
 }
 
 const acciones = {
-  hug:   { descripcion: 'Abraza a alguien',   target: true,  msg: (a, b) => `**${a}** abraza a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} abrazo${n !== 1 ? 's' : ''}.`,     boton: 'Abrazar de vuelta',   emoji: '' },
-  kiss:  { descripcion: 'Besa a alguien',      target: true,  msg: (a, b) => `**${a}** le da un beso a **${b}**`,   counter: (b, n) => `${b} ha recibido ${n} beso${n !== 1 ? 's' : ''}.`,       boton: 'Besar de vuelta',     emoji: '' },
-  pat:   { descripcion: 'Acaricia a alguien',  target: true,  msg: (a, b) => `**${a}** le da palmaditas a **${b}**`, counter: (b, n) => `${b} ha recibido ${n} caricia${n !== 1 ? 's' : ''}.`,    boton: 'Acariciar de vuelta', emoji: '' },
-  slap:  { descripcion: 'Abofetea a alguien',  target: true,  msg: (a, b) => `**${a}** abofetea a **${b}**`,        counter: (b, n) => `${b} ha recibido ${n} bofetada${n !== 1 ? 's' : ''}.`,   boton: 'Abofetear de vuelta', emoji: '' },
-  poke:  { descripcion: 'Pincha a alguien',    target: true,  msg: (a, b) => `**${a}** pincha a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} pinch${n !== 1 ? 'azos' : 'azo'}.`, boton: 'Pinchar de vuelta',   emoji: '' },
-  bite:  { descripcion: 'Muerde a alguien',    target: true,  msg: (a, b) => `**${a}** muerde a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} mordid${n !== 1 ? 'as' : 'a'}.`,   boton: 'Morder de vuelta',    emoji: '' },
-  wave:  { descripcion: 'Saluda a alguien',    target: true,  msg: (a, b) => `**${a}** saluda a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} saludo${n !== 1 ? 's' : ''}.`,     boton: 'Saludar de vuelta',   emoji: '' },
-  cry:   { descripcion: 'Llora',               target: false, msg: (a)    => `**${a}** está llorando...`,           counter: (b, n) => `${b} ha llorado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '' },
-  blush: { descripcion: 'Te sonrojas',         target: false, msg: (a)    => `**${a}** se sonroja`,                 counter: (b, n) => `${b} se ha sonrojado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,  boton: null,                  emoji: '' },
-  dance: { descripcion: 'Baila',               target: false, msg: (a)    => `**${a}** está bailando`,              counter: (b, n) => `${b} ha bailado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,       boton: null,                  emoji: '' },
+  hug:   { descripcion: 'Abraza a alguien',    target: true,  msg: (a, b) => `**${a}** abraza a **${b}**`,            counter: (b, n) => `${b} ha recibido ${n} abrazo${n !== 1 ? 's' : ''}.`,      boton: 'Abrazar de vuelta'   },
+  kiss:  { descripcion: 'Besa a alguien',       target: true,  msg: (a, b) => `**${a}** le da un beso a **${b}**`,     counter: (b, n) => `${b} ha recibido ${n} beso${n !== 1 ? 's' : ''}.`,        boton: 'Besar de vuelta'     },
+  pat:   { descripcion: 'Acaricia a alguien',   target: true,  msg: (a, b) => `**${a}** le da palmaditas a **${b}**`,  counter: (b, n) => `${b} ha recibido ${n} caricia${n !== 1 ? 's' : ''}.`,     boton: 'Acariciar de vuelta' },
+  slap:  { descripcion: 'Abofetea a alguien',   target: true,  msg: (a, b) => `**${a}** abofetea a **${b}**`,          counter: (b, n) => `${b} ha recibido ${n} bofetada${n !== 1 ? 's' : ''}.`,    boton: 'Abofetear de vuelta' },
+  poke:  { descripcion: 'Pincha a alguien',     target: true,  msg: (a, b) => `**${a}** pincha a **${b}**`,            counter: (b, n) => `${b} ha recibido ${n} pinch${n !== 1 ? 'azos' : 'azo'}.`, boton: 'Pinchar de vuelta'   },
+  bite:  { descripcion: 'Muerde a alguien',     target: true,  msg: (a, b) => `**${a}** muerde a **${b}**`,            counter: (b, n) => `${b} ha recibido ${n} mordid${n !== 1 ? 'as' : 'a'}.`,    boton: 'Morder de vuelta'    },
+  wave:  { descripcion: 'Saluda a alguien',     target: true,  msg: (a, b) => `**${a}** saluda a **${b}**`,            counter: (b, n) => `${b} ha recibido ${n} saludo${n !== 1 ? 's' : ''}.`,      boton: 'Saludar de vuelta'   },
+  cry:   { descripcion: 'Llora',                target: false, msg: (a)    => `**${a}** está llorando...`,             counter: (b, n) => `${b} ha llorado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,        boton: null                  },
+  blush: { descripcion: 'Te sonrojas',          target: false, msg: (a)    => `**${a}** se sonroja`,                   counter: (b, n) => `${b} se ha sonrojado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,   boton: null                  },
+  dance: { descripcion: 'Baila',                target: false, msg: (a)    => `**${a}** está bailando`,                counter: (b, n) => `${b} ha bailado ${n} ve${n !== 1 ? 'ces' : 'z'}.`,        boton: null                  },
 };
 
 const builder = new SlashCommandBuilder()
@@ -60,13 +55,15 @@ for (const [nombre, config] of Object.entries(acciones)) {
 
 async function sendInteraction(interaction, sub, autor, target) {
   const config = acciones[sub];
-  const data = loadData();
+
+  // Defer PRIMERO antes de cualquier otra cosa
+  await interaction.deferReply();
 
   if (target && target.id === autor.id) {
-    return interaction.reply({ content: 'No puedes hacerte eso a ti mismo.', ephemeral: true });
+    return interaction.editReply({ content: '❌ No puedes hacerte eso a ti mismo.' });
   }
 
-  await interaction.deferReply();
+  const data = loadData();
 
   try {
     const { data: apiData } = await axios.get(`https://nekos.best/api/v2/${sub}`);
@@ -88,18 +85,16 @@ async function sendInteraction(interaction, sub, autor, target) {
       .setImage(gifURL)
       .setColor(0xFF6B9D);
 
-    // Footer con contador y nombre del anime
     const footerParts = [counterText];
     if (animeName) footerParts.push(`Anime: ${animeName}`);
     embed.setFooter({ text: footerParts.join('\n') });
 
-    // Botón de respuesta solo si tiene target y botón definido
     const components = [];
     if (config.boton && target) {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`interact_${sub}_${autor.id}_${target.id}`)
-          .setLabel(`${config.emoji} ${config.boton}`)
+          .setLabel(config.boton)
           .setStyle(ButtonStyle.Secondary)
       );
       components.push(row);
@@ -107,6 +102,7 @@ async function sendInteraction(interaction, sub, autor, target) {
 
     await interaction.editReply({ embeds: [embed], components });
   } catch (err) {
+    console.error(err);
     await interaction.editReply({ content: '❌ No pude obtener el GIF, intenta de nuevo.' });
   }
 }
@@ -124,49 +120,54 @@ module.exports = {
   },
 
   async handleButton(interaction) {
-    // customId: interact_<accion>_<autorOriginal>_<targetOriginal>
     const parts = interaction.customId.split('_');
     const sub = parts[1];
     const originalAutorId = parts[2];
+    const originalTargetId = parts[3];
 
     // Solo el target original puede responder
-    if (interaction.user.id !== originalAutorId && interaction.user.id !== parts[3]) {
-      return interaction.reply({ content: 'Solo el usuario mencionado puede responder.', ephemeral: true });
+    if (interaction.user.id !== originalTargetId) {
+      return interaction.reply({ content: '❌ Solo el usuario mencionado puede responder.', flags: MessageFlags.Ephemeral });
     }
 
-    // El que responde es ahora el autor, y el autor original es el target
+    await interaction.deferReply();
+
     const nuevoAutor = interaction.user;
     const nuevoTarget = await interaction.client.users.fetch(originalAutorId);
 
-    await interaction.deferReply();
-    
     const config = acciones[sub];
     const data = loadData();
-    const { data: apiData } = await axios.get(`https://nekos.best/api/v2/${sub}`);
-    const result = apiData.results[0];
-    const gifURL = result.url;
-    const animeName = result.anime_name || null;
 
-    const count = increment(data, sub, nuevoTarget.id);
-    const descripcion = config.msg(nuevoAutor.username, nuevoTarget.username);
-    const counterText = config.counter(nuevoTarget.username, count);
+    try {
+      const { data: apiData } = await axios.get(`https://nekos.best/api/v2/${sub}`);
+      const result = apiData.results[0];
+      const gifURL = result.url;
+      const animeName = result.anime_name || null;
 
-    const embed = new EmbedBuilder()
-      .setDescription(descripcion)
-      .setImage(gifURL)
-      .setColor(0xFF6B9D);
+      const count = increment(data, sub, nuevoTarget.id);
+      const descripcion = config.msg(nuevoAutor.username, nuevoTarget.username);
+      const counterText = config.counter(nuevoTarget.username, count);
 
-    const footerParts = [counterText];
-    if (animeName) footerParts.push(`Anime: ${animeName}`);
-    embed.setFooter({ text: footerParts.join('\n') });
+      const embed = new EmbedBuilder()
+        .setDescription(descripcion)
+        .setImage(gifURL)
+        .setColor(0xFF6B9D);
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`interact_${sub}_${nuevoAutor.id}_${nuevoTarget.id}`)
-        .setLabel(`${config.emoji} ${config.boton}`)
-        .setStyle(ButtonStyle.Secondary)
-    );
+      const footerParts = [counterText];
+      if (animeName) footerParts.push(`Anime: ${animeName}`);
+      embed.setFooter({ text: footerParts.join('\n') });
 
-    await interaction.editReply({ embeds: [embed], components: [row] });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`interact_${sub}_${nuevoAutor.id}_${nuevoTarget.id}`)
+          .setLabel(config.boton)
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      await interaction.editReply({ embeds: [embed], components: [row] });
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply({ content: '❌ No pude obtener el GIF, intenta de nuevo.' });
+    }
   }
 };

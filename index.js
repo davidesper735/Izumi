@@ -41,4 +41,8 @@ for (const file of eventFiles) {
   }
 }
 
+process.on('unhandledRejection', error => {
+  console.error('Error no manejado:', error);
+});
+
 client.login(process.env.TOKEN);
