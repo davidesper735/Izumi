@@ -1,18 +1,14 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 
-const configPath = path.join(__dirname, '..', '..', '..', 'data', 'config.json');
+
+// Reemplaza las funciones al inicio de mod.js
+const db = require('../../database/database');
 
 function getLogsChannel(guild) {
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    const channelId = config?.[guild.id]?.logsChannel;
-    if (!channelId) return null;
-    return guild.channels.cache.get(channelId) || null;
-  } catch {
-    return null;
-  }
+  const settings = db.prepare('SELECT log_channel FROM guild_settings WHERE guild_id = ?').get(guild.id);
+  const channelId = settings?.log_channel;
+  if (!channelId) return null;
+  return guild.channels.cache.get(channelId) || null;
 }
 
 async function sendLog(guild, embed) {

@@ -21,12 +21,26 @@ CREATE TABLE IF NOT EXISTS snipes (
 );
 
 /* =========================
+   RECORDATORIOS
+========================= */
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    remind_at INTEGER NOT NULL,
+    done INTEGER DEFAULT 0
+);
+
+/* =========================
    CONFIGURACIÓN SERVIDOR
 ========================= */
 CREATE TABLE IF NOT EXISTS guild_settings (
     guild_id TEXT PRIMARY KEY,
     language TEXT DEFAULT 'es',
-    log_channel TEXT
+    log_channel TEXT,
+    prefix TEXT DEFAULT '#'
 );
 
 /* =========================
@@ -70,6 +84,19 @@ CREATE TABLE IF NOT EXISTS command_usage (
 );
 `);
 
-console.log("📦 Base de datos inicializada correctamente.");
+// Migraciones — agregan columnas nuevas sin romper la DB existente
+const migraciones = [
+  `ALTER TABLE guild_settings ADD COLUMN prefix TEXT DEFAULT '#'`,
+];
+
+for (const sql of migraciones) {
+  try {
+    db.prepare(sql).run();
+  } catch (e) {
+    // Columna ya existe, ignorar
+  }
+}
+
+console.log("Base de datos inicializada correctamente.");
 
 module.exports = db;

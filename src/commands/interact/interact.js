@@ -1,27 +1,25 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const db = require('../../database/database');
 
-const dataPath = path.join(__dirname, '..', '..', '..', 'data', 'interact.json');
+function increment(userId, targetId, action) {
+  const existing = db.prepare(
+    'SELECT id FROM interactions WHERE user_id = ? AND target_id = ? AND action = ?'
+  ).get(userId, targetId, action);
 
-function loadData() {
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-    fs.writeFileSync(dataPath, '{}');
+  if (existing) {
+    db.prepare(
+      'UPDATE interactions SET count = count + 1 WHERE user_id = ? AND target_id = ? AND action = ?'
+    ).run(userId, targetId, action);
+  } else {
+    db.prepare(
+      'INSERT INTO interactions (user_id, target_id, action, count) VALUES (?, ?, ?, 1)'
+    ).run(userId, targetId, action);
   }
-  return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
-}
 
-function saveData(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
-
-function increment(data, action, userId) {
-  if (!data[action]) data[action] = {};
-  data[action][userId] = (data[action][userId] || 0) + 1;
-  saveData(data);
-  return data[action][userId];
+  return db.prepare(
+    'SELECT count FROM interactions WHERE user_id = ? AND target_id = ? AND action = ?'
+  ).get(userId, targetId, action).count;
 }
 
 const acciones = {
@@ -53,17 +51,20 @@ for (const [nombre, config] of Object.entries(acciones)) {
   });
 }
 
-async function sendInteraction(interaction, sub, autor, target) {
+async function sendInteraction(context, sub, autor, target) {
   const config = acciones[sub];
-
-  // Defer PRIMERO antes de cualquier otra cosa
-  await interaction.deferReply();
+  const isSlash = context.isSlash;
 
   if (target && target.id === autor.id) {
-    return interaction.editReply({ content: '❌ No puedes hacerte eso a ti mismo.' });
+    return context.reply({ content: 'No puedes hacerte eso a ti mismo.' });
   }
 
-  const data = loadData();
+  // Para slash diferimos, para prefix mostramos typing
+  if (isSlash) {
+    await context.interaction.deferReply();
+  } else {
+    await context.channel.sendTyping();
+  }
 
   try {
     const { data: apiData } = await axios.get(`https://nekos.best/api/v2/${sub}`);
@@ -72,7 +73,7 @@ async function sendInteraction(interaction, sub, autor, target) {
     const animeName = result.anime_name || null;
 
     const countTarget = target || autor;
-    const count = increment(data, sub, countTarget.id);
+    const count = increment(autor.id, countTarget.id, sub);
 
     const descripcion = config.target
       ? config.msg(autor.username, target.username)
@@ -90,7 +91,7 @@ async function sendInteraction(interaction, sub, autor, target) {
     embed.setFooter({ text: footerParts.join('\n') });
 
     const components = [];
-    if (config.boton && target) {
+    if (config.boton && target && isSlash) {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`interact_${sub}_${autor.id}_${target.id}`)
@@ -100,10 +101,19 @@ async function sendInteraction(interaction, sub, autor, target) {
       components.push(row);
     }
 
-    await interaction.editReply({ embeds: [embed], components });
+    if (isSlash) {
+      await context.interaction.editReply({ embeds: [embed], components });
+    } else {
+      await context.reply({ embeds: [embed] });
+    }
   } catch (err) {
     console.error(err);
-    await interaction.editReply({ content: '❌ No pude obtener el GIF, intenta de nuevo.' });
+    const msg = 'No pude obtener el GIF, intenta de nuevo.';
+    if (isSlash) {
+      await context.interaction.editReply({ content: msg });
+    } else {
+      await context.reply(msg);
+    }
   }
 }
 
@@ -116,7 +126,32 @@ module.exports = {
     const autor = interaction.user;
     const target = config.target ? interaction.options.getUser('usuario') : null;
 
-    await sendInteraction(interaction, sub, autor, target);
+    const context = {
+      isSlash: true,
+      interaction,
+      guild: interaction.guild,
+      channel: interaction.channel,
+      user: interaction.user,
+      reply: (content) => interaction.reply(content)
+    };
+
+    await sendInteraction(context, sub, autor, target);
+  },
+
+  // Llamado desde aliases de prefix en index.js
+  async runAccion(context) {
+    const sub = context.accion;
+    const config = acciones[sub];
+    if (!config) return;
+
+    const autor = context.user;
+    const target = config.target ? context.resolveUser(0) : null;
+
+    if (config.target && !target) {
+      return context.reply({ content: `Menciona a un usuario. Uso: \`${context.prefix || '#'}${sub} @usuario\`` });
+    }
+
+    await sendInteraction(context, sub, autor, target);
   },
 
   async handleButton(interaction) {
@@ -125,18 +160,15 @@ module.exports = {
     const originalAutorId = parts[2];
     const originalTargetId = parts[3];
 
-    // Solo el target original puede responder
     if (interaction.user.id !== originalTargetId) {
-      return interaction.reply({ content: '❌ Solo el usuario mencionado puede responder.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Solo el usuario mencionado puede responder.', flags: MessageFlags.Ephemeral });
     }
 
     await interaction.deferReply();
 
     const nuevoAutor = interaction.user;
     const nuevoTarget = await interaction.client.users.fetch(originalAutorId);
-
     const config = acciones[sub];
-    const data = loadData();
 
     try {
       const { data: apiData } = await axios.get(`https://nekos.best/api/v2/${sub}`);
@@ -144,7 +176,7 @@ module.exports = {
       const gifURL = result.url;
       const animeName = result.anime_name || null;
 
-      const count = increment(data, sub, nuevoTarget.id);
+      const count = increment(nuevoAutor.id, nuevoTarget.id, sub);
       const descripcion = config.msg(nuevoAutor.username, nuevoTarget.username);
       const counterText = config.counter(nuevoTarget.username, count);
 
@@ -167,7 +199,7 @@ module.exports = {
       await interaction.editReply({ embeds: [embed], components: [row] });
     } catch (err) {
       console.error(err);
-      await interaction.editReply({ content: '❌ No pude obtener el GIF, intenta de nuevo.' });
+      await interaction.editReply({ content: 'No pude obtener el GIF, intenta de nuevo.' });
     }
   }
 };

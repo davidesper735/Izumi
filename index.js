@@ -1,9 +1,9 @@
 require('dotenv').config();
 require("./src/database/database");
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { setupDistube } = require('./src/commands/music/distube');
 const fs = require('fs');
 const path = require('path');
-
 
 const client = new Client({
   intents: [
@@ -16,7 +16,6 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Carga todos los comandos desde src/commands/
 const foldersPath = path.join(__dirname, 'src', 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
@@ -31,7 +30,23 @@ for (const folder of commandFolders) {
   }
 }
 
-// Carga eventos
+// Registra aliases de prefix para interact
+const interact = client.commands.get('interact');
+if (interact) {
+  const accionesInteract = ['hug', 'kiss', 'pat', 'slap', 'poke', 'bite', 'wave', 'cry', 'blush', 'dance'];
+  for (const accion of accionesInteract) {
+    client.commands.set(accion, {
+      data: { name: accion },
+      run: async (context) => {
+        await interact.runAccion({ ...context, accion });
+      }
+    });
+  }
+}
+
+// Inicializa DisTube
+setupDistube(client);
+
 const eventsPath = path.join(__dirname, 'src', 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'));
 for (const file of eventFiles) {

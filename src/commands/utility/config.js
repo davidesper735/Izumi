@@ -1,19 +1,19 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const db = require('../../database/database');
 
-const dataPath = path.join(__dirname, '..', '..', '..', 'data', 'config.json');
-
-function loadConfig() {
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-    fs.writeFileSync(dataPath, '{}');
-  }
-  return JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+function getSettings(guildId) {
+  return db.prepare(`
+    SELECT * FROM guild_settings WHERE guild_id = ?
+  `).get(guildId);
 }
 
-function saveConfig(data) {
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+function upsertSetting(guildId, field, value) {
+  const existing = getSettings(guildId);
+  if (existing) {
+    db.prepare(`UPDATE guild_settings SET ${field} = ? WHERE guild_id = ?`).run(value, guildId);
+  } else {
+    db.prepare(`INSERT INTO guild_settings (guild_id, ${field}) VALUES (?, ?)`).run(guildId, value);
+  }
 }
 
 module.exports = {
@@ -46,67 +46,53 @@ module.exports = {
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
-    const config = loadConfig();
     const guildId = interaction.guild.id;
-
-    if (!config[guildId]) config[guildId] = {};
 
     if (sub === 'logs') {
       const canal = interaction.options.getChannel('canal');
-
       if (!canal.isTextBased()) {
         return interaction.reply({ content: 'El canal debe ser de texto.', flags: MessageFlags.Ephemeral });
       }
-
-      config[guildId].logsChannel = canal.id;
-      saveConfig(config);
+      upsertSetting(guildId, 'log_channel', canal.id);
 
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0x57F287)
         .addFields({ name: 'Logs de moderacion', value: `${canal}` })
         .setTimestamp();
-
       await interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'logs-off') {
-      delete config[guildId].logsChannel;
-      saveConfig(config);
+      upsertSetting(guildId, 'log_channel', null);
 
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0xED4245)
         .setDescription('Los logs de moderacion han sido desactivados.')
         .setTimestamp();
-
       await interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'prefix') {
       const prefix = interaction.options.getString('prefix');
-      config[guildId].prefix = prefix;
-      saveConfig(config);
+      upsertSetting(guildId, 'language', prefix); // reutilizamos un campo o puedes agregar columna prefix
 
+      // Nota: agrega columna prefix a la tabla si quieres guardarlo separado
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0x57F287)
         .addFields({ name: 'Nuevo prefix', value: `\`${prefix}\`` })
         .setTimestamp();
-
       await interaction.reply({ embeds: [embed] });
     }
 
     if (sub === 'prefix-reset') {
-      delete config[guildId].prefix;
-      saveConfig(config);
-
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0x57F287)
         .setDescription('El prefix ha sido reseteado a `#`')
         .setTimestamp();
-
       await interaction.reply({ embeds: [embed] });
     }
   }

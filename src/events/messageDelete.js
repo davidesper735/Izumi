@@ -2,20 +2,13 @@ const db = require('../database/database');
 
 module.exports = {
   name: 'messageDelete',
-
   async execute(message) {
-    if (!message.guild) return;
     if (message.author?.bot) return;
-    if (!message.content?.trim()) return;
+    if (!message.content) return;
+    if (!message.guild) return;
 
     db.prepare(`
-      INSERT INTO snipes (
-        guild_id,
-        channel_id,
-        author_id,
-        content,
-        deleted_at
-      )
+      INSERT INTO snipes (guild_id, channel_id, author_id, content, deleted_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(
       message.guild.id,

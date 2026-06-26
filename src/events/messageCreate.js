@@ -1,16 +1,10 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../database/database');
 
 const DEFAULT_PREFIX = '#';
-const configPath = path.join(__dirname, '..', '..', 'data', 'config.json');
 
 function getPrefix(guildId) {
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return config?.[guildId]?.prefix || DEFAULT_PREFIX;
-  } catch {
-    return DEFAULT_PREFIX;
-  }
+  const settings = db.prepare('SELECT prefix FROM guild_settings WHERE guild_id = ?').get(guildId);
+  return settings?.prefix || DEFAULT_PREFIX;
 }
 
 function resolveUser(arg, guild) {
