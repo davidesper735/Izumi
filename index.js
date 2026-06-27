@@ -62,4 +62,11 @@ process.on('unhandledRejection', error => {
   console.error('Error no manejado:', error);
 });
 
+const http = require("http");
+
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("Izumi online");
+}).listen(process.env.PORT || 3000);
+
 client.login(process.env.TOKEN);
