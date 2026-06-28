@@ -1,11 +1,17 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActivityType } = require('discord.js');
 const { pool } = require('../database/database');
+
 
 module.exports = {
   name: 'clientReady',
   once: true,
   async execute(client) {
     console.log(`Bot conectado como ${client.user.tag}`);
+
+    client.user.setPresence({
+  activities: [{ name: '/help', type: ActivityType.Listening }],
+  status: 'online'
+});
 
     const { rows: pendientes } = await pool.query('SELECT * FROM reminders WHERE done = 0');
     const ahora = Date.now();
