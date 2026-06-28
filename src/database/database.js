@@ -1,102 +1,68 @@
-const Database = require("better-sqlite3");
-const path = require("path");
+const { Pool } = require('pg');
 
-const db = new Database(
-    path.join(__dirname, "../../izumi.db")
-);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-db.pragma("journal_mode = WAL");
+async function init() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS snipes (
+      id SERIAL PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      author_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      deleted_at BIGINT NOT NULL
+    );
 
-db.exec(`
-/* =========================
-   SNIPES
-========================= */
-CREATE TABLE IF NOT EXISTS snipes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    guild_id TEXT NOT NULL,
-    channel_id TEXT NOT NULL,
-    author_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    deleted_at INTEGER NOT NULL
-);
+    CREATE TABLE IF NOT EXISTS guild_settings (
+      guild_id TEXT PRIMARY KEY,
+      language TEXT DEFAULT 'es',
+      log_channel TEXT,
+      prefix TEXT DEFAULT '#'
+    );
 
-/* =========================
-   RECORDATORIOS
-========================= */
-CREATE TABLE IF NOT EXISTS reminders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    channel_id TEXT NOT NULL,
-    guild_id TEXT NOT NULL,
-    message TEXT NOT NULL,
-    remind_at INTEGER NOT NULL,
-    done INTEGER DEFAULT 0
-);
+    CREATE TABLE IF NOT EXISTS interactions (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      count INTEGER DEFAULT 1
+    );
 
-/* =========================
-   CONFIGURACIÓN SERVIDOR
-========================= */
-CREATE TABLE IF NOT EXISTS guild_settings (
-    guild_id TEXT PRIMARY KEY,
-    language TEXT DEFAULT 'es',
-    log_channel TEXT,
-    prefix TEXT DEFAULT '#'
-);
+    CREATE TABLE IF NOT EXISTS ships (
+      id SERIAL PRIMARY KEY,
+      user1_id TEXT NOT NULL,
+      user2_id TEXT NOT NULL,
+      percentage INTEGER NOT NULL,
+      created_at BIGINT NOT NULL
+    );
 
-/* =========================
-   ESTADÍSTICAS INTERACT
-========================= */
-CREATE TABLE IF NOT EXISTS interactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    action TEXT NOT NULL,
-    count INTEGER DEFAULT 1
-);
+    CREATE TABLE IF NOT EXISTS translations (
+      id SERIAL PRIMARY KEY,
+      original TEXT NOT NULL,
+      translated TEXT NOT NULL,
+      target_lang TEXT NOT NULL
+    );
 
-/* =========================
-   SHIP
-========================= */
-CREATE TABLE IF NOT EXISTS ships (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user1_id TEXT NOT NULL,
-    user2_id TEXT NOT NULL,
-    percentage INTEGER NOT NULL,
-    created_at INTEGER NOT NULL
-);
+    CREATE TABLE IF NOT EXISTS command_usage (
+      command_name TEXT PRIMARY KEY,
+      uses INTEGER DEFAULT 0
+    );
 
-/* =========================
-   TRADUCCIONES CACHE
-========================= */
-CREATE TABLE IF NOT EXISTS translations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    original TEXT NOT NULL,
-    translated TEXT NOT NULL,
-    target_lang TEXT NOT NULL
-);
+    CREATE TABLE IF NOT EXISTS reminders (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      guild_id TEXT NOT NULL,
+      message TEXT NOT NULL,
+      remind_at BIGINT NOT NULL,
+      done INTEGER DEFAULT 0
+    );
+  `);
 
-/* =========================
-   COMANDOS USADOS
-========================= */
-CREATE TABLE IF NOT EXISTS command_usage (
-    command_name TEXT PRIMARY KEY,
-    uses INTEGER DEFAULT 0
-);
-`);
-
-// Migraciones — agregan columnas nuevas sin romper la DB existente
-const migraciones = [
-  `ALTER TABLE guild_settings ADD COLUMN prefix TEXT DEFAULT '#'`,
-];
-
-for (const sql of migraciones) {
-  try {
-    db.prepare(sql).run();
-  } catch (e) {
-    // Columna ya existe, ignorar
-  }
+  console.log('Base de datos inicializada correctamente.');
 }
 
-console.log("Base de datos inicializada correctamente.");
-
-module.exports = db;
+module.exports = { pool, init };

@@ -1,25 +1,31 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const axios = require('axios');
-const db = require('../../database/database');
+const { pool } = require('../../database/database');
 
-function increment(userId, targetId, action) {
-  const existing = db.prepare(
-    'SELECT id FROM interactions WHERE user_id = ? AND target_id = ? AND action = ?'
-  ).get(userId, targetId, action);
+async function increment(userId, targetId, action) {
+  const existing = await pool.query(
+    'SELECT id FROM interactions WHERE user_id = $1 AND target_id = $2 AND action = $3',
+    [userId, targetId, action]
+  );
 
-  if (existing) {
-    db.prepare(
-      'UPDATE interactions SET count = count + 1 WHERE user_id = ? AND target_id = ? AND action = ?'
-    ).run(userId, targetId, action);
+  if (existing.rows.length > 0) {
+    await pool.query(
+      'UPDATE interactions SET count = count + 1 WHERE user_id = $1 AND target_id = $2 AND action = $3',
+      [userId, targetId, action]
+    );
   } else {
-    db.prepare(
-      'INSERT INTO interactions (user_id, target_id, action, count) VALUES (?, ?, ?, 1)'
-    ).run(userId, targetId, action);
+    await pool.query(
+      'INSERT INTO interactions (user_id, target_id, action, count) VALUES ($1, $2, $3, 1)',
+      [userId, targetId, action]
+    );
   }
 
-  return db.prepare(
-    'SELECT count FROM interactions WHERE user_id = ? AND target_id = ? AND action = ?'
-  ).get(userId, targetId, action).count;
+  const result = await pool.query(
+    'SELECT count FROM interactions WHERE user_id = $1 AND target_id = $2 AND action = $3',
+    [userId, targetId, action]
+  );
+
+  return result.rows[0].count;
 }
 
 const acciones = {
@@ -59,7 +65,6 @@ async function sendInteraction(context, sub, autor, target) {
     return context.reply({ content: 'No puedes hacerte eso a ti mismo.' });
   }
 
-  // Para slash diferimos, para prefix mostramos typing
   if (isSlash) {
     await context.interaction.deferReply();
   } else {
@@ -73,7 +78,7 @@ async function sendInteraction(context, sub, autor, target) {
     const animeName = result.anime_name || null;
 
     const countTarget = target || autor;
-    const count = increment(autor.id, countTarget.id, sub);
+    const count = await increment(autor.id, countTarget.id, sub);
 
     const descripcion = config.target
       ? config.msg(autor.username, target.username)
@@ -138,7 +143,6 @@ module.exports = {
     await sendInteraction(context, sub, autor, target);
   },
 
-  // Llamado desde aliases de prefix en index.js
   async runAccion(context) {
     const sub = context.accion;
     const config = acciones[sub];
@@ -176,7 +180,7 @@ module.exports = {
       const gifURL = result.url;
       const animeName = result.anime_name || null;
 
-      const count = increment(nuevoAutor.id, nuevoTarget.id, sub);
+      const count = await increment(nuevoAutor.id, nuevoTarget.id, sub);
       const descripcion = config.msg(nuevoAutor.username, nuevoTarget.username);
       const counterText = config.counter(nuevoTarget.username, count);
 

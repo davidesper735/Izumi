@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { pool } = require('../database/database');
 
 module.exports = {
   name: 'clientReady',
@@ -6,15 +7,14 @@ module.exports = {
   async execute(client) {
     console.log(`Bot conectado como ${client.user.tag}`);
 
-    const db = require('../database/database');
+    const { rows: pendientes } = await pool.query('SELECT * FROM reminders WHERE done = 0');
     const ahora = Date.now();
-    const pendientes = db.prepare('SELECT * FROM reminders WHERE done = 0').all();
 
     for (const reminder of pendientes) {
-      const restante = reminder.remind_at - ahora;
+      const restante = Number(reminder.remind_at) - ahora;
 
       if (restante <= 0) {
-        db.prepare('UPDATE reminders SET done = 1 WHERE id = ?').run(reminder.id);
+        await pool.query('UPDATE reminders SET done = 1 WHERE id = $1', [reminder.id]);
         continue;
       }
 
@@ -30,7 +30,7 @@ module.exports = {
             .setTimestamp();
 
           await channel.send({ embeds: [embed] });
-          db.prepare('UPDATE reminders SET done = 1 WHERE id = ?').run(reminder.id);
+          await pool.query('UPDATE reminders SET done = 1 WHERE id = $1', [reminder.id]);
         } catch (err) {
           console.error('Error enviando recordatorio pendiente:', err);
         }
