@@ -9,7 +9,7 @@ module.exports = {
     console.log(`Bot conectado como ${client.user.tag}`);
 
     client.user.setPresence({
-  activities: [{ name: '/help', type: ActivityType.Listening }],
+  activities: [{ name: '/interact | @izumi.com', type: ActivityType.Listening }],
   status: 'online'
 });
 
