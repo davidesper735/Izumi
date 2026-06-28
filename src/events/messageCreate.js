@@ -1,20 +1,17 @@
-const db = require('../database/database');
+const { pool } = require('../database/database');
 
 const DEFAULT_PREFIX = '#';
 
-function getPrefix(guildId) {
-  const settings = db.prepare('SELECT prefix FROM guild_settings WHERE guild_id = ?').get(guildId);
-  return settings?.prefix || DEFAULT_PREFIX;
+async function getPrefix(guildId) {
+  const result = await pool.query('SELECT prefix FROM guild_settings WHERE guild_id = $1', [guildId]);
+  return result.rows[0]?.prefix || DEFAULT_PREFIX;
 }
 
 function resolveUser(arg, guild) {
   if (!arg) return null;
-  // Mencion <@123> o <@!123>
   const mentionMatch = arg.match(/^<@!?(\d+)>$/);
   if (mentionMatch) return guild.client.users.cache.get(mentionMatch[1]) || null;
-  // ID directo
   if (/^\d+$/.test(arg)) return guild.client.users.cache.get(arg) || null;
-  // Username
   return guild.members.cache.find(m =>
     m.user.username.toLowerCase() === arg.toLowerCase()
   )?.user || null;
@@ -36,7 +33,7 @@ module.exports = {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    const prefix = getPrefix(message.guild.id);
+    const prefix = await getPrefix(message.guild.id);
     if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/\s+/);
@@ -52,12 +49,10 @@ module.exports = {
       member: message.member,
       args,
       isSlash: false,
-      // Resuelve usuarios y members desde args
       resolveUser: (index) => resolveUser(args[index], message.guild),
       resolveMember: (index) => resolveMember(args[index], message.guild),
       reply: (content) => {
         if (typeof content === 'string') return message.reply(content);
-        // Ignorar flags en prefix (no aplican a mensajes normales)
         const { flags, ...rest } = typeof content === 'object' ? content : {};
         return message.reply(rest);
       }
