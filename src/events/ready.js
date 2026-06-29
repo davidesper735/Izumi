@@ -1,7 +1,6 @@
 const { EmbedBuilder, ActivityType } = require('discord.js');
 const { pool } = require('../database/database');
 
-
 module.exports = {
   name: 'clientReady',
   once: true,
@@ -9,17 +8,16 @@ module.exports = {
     console.log(`Bot conectado como ${client.user.tag}`);
 
     client.user.setPresence({
-  activities: [{ name: '/interact | @izumi.com', type: ActivityType.Listening }],
-  status: 'online'
-});
+      activities: [{ name: '/interact | @izumi.com', type: ActivityType.Playing }],
+      status: 'online'
+    });
 
-// Refresca el estado cada 30 minutos
-setInterval(() => {
-  client.user.setPresence({
-    activities: [{ name: '/interact | @izumi.com', type: ActivityType.Listening }],
-    status: 'online'
-  }); 
-}, 30 * 60 * 1000);
+    setInterval(() => {
+      client.user.setPresence({
+        activities: [{ name: '/interact | @izumi.com', type: ActivityType.Playing }],
+        status: 'online'
+      });
+    }, 30 * 60 * 1000);
 
     const { rows: pendientes } = await pool.query('SELECT * FROM reminders WHERE done = 0');
     const ahora = Date.now();
