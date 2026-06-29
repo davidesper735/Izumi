@@ -326,8 +326,10 @@ module.exports = {
 
     // ── /lol profile ───────────────────────────────────────────────
     if (sub === 'profile') {
-      const target = interaction.options.getUser('usuario') || interaction.user;
+
       await interaction.deferReply();
+      const target = interaction.options.getUser('usuario') || interaction.user;
+      
 
       const result = await pool.query('SELECT * FROM lol_profiles WHERE user_id = $1', [target.id]);
       if (!result.rows.length) {
@@ -352,8 +354,9 @@ module.exports = {
 
     // ── /lol live ──────────────────────────────────────────────────
     if (sub === 'live') {
-      const target = interaction.options.getUser('usuario') || interaction.user;
       await interaction.deferReply();
+      const target = interaction.options.getUser('usuario') || interaction.user;
+      
 
       const result = await pool.query('SELECT * FROM lol_profiles WHERE user_id = $1', [target.id]);
       if (!result.rows.length) return interaction.editReply({ content: '❌ Sin cuenta vinculada.' });
@@ -413,9 +416,11 @@ module.exports = {
 
     // ── /lol compare ───────────────────────────────────────────────
     if (sub === 'compare') {
+
+      await interaction.deferReply();
       const user1 = interaction.options.getUser('jugador1');
       const user2 = interaction.options.getUser('jugador2');
-      await interaction.deferReply();
+      
 
       const [r1, r2] = await Promise.all([
         pool.query('SELECT * FROM lol_profiles WHERE user_id = $1', [user1.id]),
