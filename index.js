@@ -4,6 +4,19 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
+const express = require('express');
+const app = express();
+
+const PORT = process.env.PORT || 10000;
+
+app.get('/', (req, res) => {
+  res.send('Bot online');
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en ${PORT}`);
+});
+
 async function main() {
   await init();
 
