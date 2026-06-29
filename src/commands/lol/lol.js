@@ -16,37 +16,46 @@ const REGIONS = {
   ru: { platform: 'ru', cluster: 'europe' },
 };
 
-const RANK_EMOJIS = {
-  IRON: '⬛', BRONZE: '🟫', SILVER: '⬜', GOLD: '🟨',
-  PLATINUM: '🟩', EMERALD: '💚', DIAMOND: '🔷',
-  MASTER: '🔮', GRANDMASTER: '🔴', CHALLENGER: '🏆'
-};
-
 const RIOT_HEADERS = (key) => ({ 'X-Riot-Token': key });
 
-// Obtiene la versión más reciente de DDragon
 async function getDDragonVersion() {
   const res = await axios.get('https://ddragon.leagueoflegends.com/api/versions.json');
   return res.data[0];
 }
 
-// Obtiene el mapa id -> nombre de campeón
 async function getChampionMap(version) {
   const res = await axios.get(`https://ddragon.leagueoflegends.com/cdn/${version}/data/es_ES/champion.json`);
   const map = {};
   for (const champ of Object.values(res.data.data)) {
-    map[parseInt(champ.key)] = champ.name;
+    map[parseInt(champ.key)] = { name: champ.name, id: champ.id };
   }
   return map;
 }
 
+function getRankColor(tier) {
+  const colors = {
+    IRON: 0x4a4a4a, BRONZE: 0x8c5a28, SILVER: 0x8fa3b1,
+    GOLD: 0xf0b232, PLATINUM: 0x4da6a0, EMERALD: 0x2ecc71,
+    DIAMOND: 0x4fc3f7, MASTER: 0x9b59b6, GRANDMASTER: 0xe74c3c,
+    CHALLENGER: 0xf1c40f,
+  };
+  return colors[tier] || 0x2b2d31;
+}
+
 function formatRank(entry) {
-  if (!entry) return 'Sin clasificar';
+  if (!entry) return '`Sin clasificar`';
   const { tier, rank, leaguePoints, wins, losses } = entry;
   const total = wins + losses;
   const wr = total > 0 ? ((wins / total) * 100).toFixed(1) : '0';
-  const emoji = RANK_EMOJIS[tier] || '❓';
-  return `${emoji} ${tier} ${rank} — ${leaguePoints} LP\n${wins}V ${losses}D (${wr}% WR)`;
+  const tierCapital = tier.charAt(0) + tier.slice(1).toLowerCase();
+  return `**${tierCapital} ${rank}** — ${leaguePoints} LP\n${wins}W / ${losses}L — ${wr}% WR`;
+}
+
+function getMasteryLabel(level) {
+  if (level >= 10) return 'MAX';
+  if (level >= 7) return 'S';
+  if (level >= 5) return 'A';
+  return `${level}`;
 }
 
 function getStreak(matches) {
@@ -57,7 +66,7 @@ function getStreak(matches) {
     if (m.win === first) count++;
     else break;
   }
-  return first ? `🔥 ${count} victorias seguidas` : `❄️ ${count} derrotas seguidas`;
+  return first ? `${count} victorias seguidas` : `${count} derrotas seguidas`;
 }
 
 async function getProfileData(game_name, tag_line, region, riotKey) {
@@ -85,18 +94,25 @@ async function getProfileData(game_name, tag_line, region, riotKey) {
   const matchIds = matchIdsRes.data;
   const masteries = champMasteryRes.data;
 
-  // Últimas 10 partidas para racha
+  const champMap = await getChampionMap(version);
+
   const matchDetails = await Promise.all(
     matchIds.slice(0, 10).map(id =>
-      axios.get(`https://${cluster}.api.riotgames.com/lol/match/v5/matches/${id}`, { headers: RIOT_HEADERS(riotKey) })
-        .then(r => {
-          const participant = r.data.info.participants.find(p => p.puuid === puuid);
-          return { win: participant.win, champion: participant.championName, kills: participant.kills, deaths: participant.deaths, assists: participant.assists };
-        })
+      axios.get(
+        `https://${cluster}.api.riotgames.com/lol/match/v5/matches/${id}`,
+        { headers: RIOT_HEADERS(riotKey) }
+      ).then(r => {
+        const p = r.data.info.participants.find(p => p.puuid === puuid);
+        return {
+          win: p.win,
+          champion: p.championName,
+          kills: p.kills,
+          deaths: p.deaths,
+          assists: p.assists,
+        };
+      })
     )
   );
-
-  const champMap = await getChampionMap(version);
 
   return { summoner, rankedData, matchDetails, masteries, champMap, version, puuid, platform, cluster };
 }
@@ -106,45 +122,84 @@ function buildProfileEmbed(game_name, tag_line, region, data, targetUser) {
 
   const soloDuo = rankedData.find(e => e.queueType === 'RANKED_SOLO_5x5');
   const flex = rankedData.find(e => e.queueType === 'RANKED_FLEX_SR');
-  const streak = getStreak(matchDetails);
 
-  const topChamps = masteries.map((m, i) => {
-    const name = champMap[m.championId] || `ID:${m.championId}`;
-    const stars = '⭐'.repeat(Math.min(m.championLevel, 5));
-    return `${i + 1}. **${name}** ${stars} — ${m.championPoints.toLocaleString()} pts`;
+  const streak = getStreak(matchDetails);
+  const wins = matchDetails.filter(m => m.win).length;
+  const losses = matchDetails.length - wins;
+  const globalWR = matchDetails.length > 0 ? ((wins / matchDetails.length) * 100).toFixed(0) : '0';
+
+  const avgKills = (matchDetails.reduce((a, m) => a + m.kills, 0) / (matchDetails.length || 1)).toFixed(1);
+  const avgDeaths = (matchDetails.reduce((a, m) => a + m.deaths, 0) / (matchDetails.length || 1)).toFixed(1);
+  const avgAssists = (matchDetails.reduce((a, m) => a + m.assists, 0) / (matchDetails.length || 1)).toFixed(1);
+
+  const topChamps = masteries.map(m => {
+    const champ = champMap[m.championId];
+    const name = champ?.name || `#${m.championId}`;
+    const pts = (m.championPoints / 1000).toFixed(0) + 'k';
+    const lvl = getMasteryLabel(m.championLevel);
+    return `**${name}** · M${lvl} · ${pts} pts`;
   }).join('\n') || 'Sin datos';
+
+  const recentGames = matchDetails.slice(0, 5).map(m => {
+    const result = m.win ? '🟦' : '🟥';
+    return `${result} ${m.champion} — ${m.kills}/${m.deaths}/${m.assists}`;
+  }).join('\n') || 'Sin partidas recientes';
 
   const iconUrl = `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${summoner.profileIconId}.png`;
 
+  const description = [
+    `> Nivel **${summoner.summonerLevel}** · ${region.toUpperCase()} · ${streak}`,
+    ``,
+    `**RANKED SOLO/DÚO**`,
+    formatRank(soloDuo),
+    ``,
+    `**RANKED FLEX**`,
+    formatRank(flex),
+  ].join('\n');
+
   return new EmbedBuilder()
-    .setTitle(`${game_name}#${tag_line}`)
-    .setThumbnail(iconUrl)
-    .setColor(0xC89B3C)
+    .setAuthor({ name: `${game_name}#${tag_line}`, iconURL: iconUrl })
+    .setColor(soloDuo ? getRankColor(soloDuo.tier) : 0x2b2d31)
+    .setDescription(description)
     .addFields(
-      { name: '🎮 Nivel', value: `${summoner.summonerLevel}`, inline: true },
-      { name: '🌍 Región', value: region.toUpperCase(), inline: true },
-      { name: '📊 Racha', value: streak, inline: true },
-      { name: '🏆 Solo/Dúo', value: formatRank(soloDuo), inline: true },
-      { name: '🤝 Flex', value: formatRank(flex), inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
-      { name: '🥇 Top Campeones', value: topChamps },
+      {
+        name: 'Últimas 10 partidas',
+        value: `${wins}W / ${losses}L — **${globalWR}% WR** · KDA promedio: ${avgKills}/${avgDeaths}/${avgAssists}`,
+        inline: false
+      },
+      {
+        name: 'Recientes',
+        value: recentGames,
+        inline: true
+      },
+      {
+        name: 'Top Campeones',
+        value: topChamps,
+        inline: true
+      }
     )
-    .setFooter({ text: `Perfil de ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
+    .setThumbnail(iconUrl)
+    .setFooter({ text: targetUser.username, iconURL: targetUser.displayAvatarURL() })
     .setTimestamp();
 }
 
 function buildHistorialEmbed(game_name, tag_line, matchDetails, targetUser) {
-  const lines = matchDetails.map((m, i) => {
-    const result = m.win ? '✅' : '❌';
+  const lines = matchDetails.map(m => {
+    const result = m.win ? '🟦' : '🟥';
     const kda = `${m.kills}/${m.deaths}/${m.assists}`;
     return `${result} **${m.champion}** — ${kda}`;
   }).join('\n') || 'Sin partidas recientes';
 
+  const wins = matchDetails.filter(m => m.win).length;
+  const losses = matchDetails.length - wins;
+  const wr = matchDetails.length > 0 ? ((wins / matchDetails.length) * 100).toFixed(0) : '0';
+
   return new EmbedBuilder()
-    .setTitle(`📋 Últimas partidas — ${game_name}#${tag_line}`)
+    .setAuthor({ name: `${game_name}#${tag_line} · Historial` })
     .setColor(0x5865F2)
     .setDescription(lines)
-    .setFooter({ text: `Historial de ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
+    .addFields({ name: 'Resumen', value: `${wins}W / ${losses}L — **${wr}% WR**`, inline: false })
+    .setFooter({ text: targetUser.username, iconURL: targetUser.displayAvatarURL() })
     .setTimestamp();
 }
 
@@ -153,17 +208,14 @@ function buildButtons(userId, targetId, view) {
     new ButtonBuilder()
       .setCustomId(`lol_profile_${userId}_${targetId}`)
       .setLabel('Perfil')
-      .setEmoji('👤')
       .setStyle(view === 'profile' ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`lol_historial_${userId}_${targetId}`)
       .setLabel('Historial')
-      .setEmoji('📋')
       .setStyle(view === 'historial' ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`lol_live_${userId}_${targetId}`)
       .setLabel('En vivo')
-      .setEmoji('🔴')
       .setStyle(ButtonStyle.Danger),
   );
 }
@@ -258,12 +310,9 @@ module.exports = {
         `, [interaction.user.id, gameName, tagLine, region]);
 
         const embed = new EmbedBuilder()
-          .setTitle('✅ Cuenta vinculada')
+          .setTitle('Cuenta vinculada')
           .setColor(0x57F287)
-          .addFields(
-            { name: 'Riot ID', value: `${gameName}#${tagLine}`, inline: true },
-            { name: 'Región', value: region.toUpperCase(), inline: true }
-          )
+          .setDescription(`**${gameName}#${tagLine}** · ${region.toUpperCase()}`)
           .setFooter({ text: 'Usa /lol profile para ver tus estadísticas' })
           .setTimestamp();
 
@@ -313,6 +362,9 @@ module.exports = {
       const { platform, cluster } = REGIONS[region];
 
       try {
+        const version = await getDDragonVersion();
+        const champMap = await getChampionMap(version);
+
         const accountRes = await axios.get(
           `https://${cluster}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(game_name)}/${encodeURIComponent(tag_line)}`,
           { headers: RIOT_HEADERS(riotKey) }
@@ -325,35 +377,34 @@ module.exports = {
         );
 
         const game = liveRes.data;
-        const version = await getDDragonVersion();
-        const champMap = await getChampionMap(version);
-
         const participant = game.participants.find(p => p.puuid === puuid);
-        const champName = champMap[participant?.championId] || 'Desconocido';
+        const champ = champMap[participant?.championId];
+        const champName = champ?.name || 'Desconocido';
+        const champId = champ?.id || '';
 
         const queueNames = {
           420: 'Ranked Solo/Dúo', 440: 'Ranked Flex', 400: 'Normal Draft',
-          430: 'Normal Ciego', 450: 'ARAM', 900: 'URF'
+          430: 'Normal Ciego', 450: 'ARAM', 900: 'URF', 1020: 'One for All'
         };
         const queueName = queueNames[game.gameQueueConfigId] || `Cola ${game.gameQueueConfigId}`;
         const duration = Math.floor(game.gameLength / 60);
 
         const embed = new EmbedBuilder()
-          .setTitle(`🔴 ${game_name}#${tag_line} está en partida`)
+          .setAuthor({ name: `${game_name}#${tag_line} · En partida`, iconURL: `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${participant?.profileIconId || 0}.png` })
           .setColor(0xED4245)
+          .setDescription(`**${champName}** · ${queueName}`)
           .addFields(
-            { name: '🎮 Modo', value: queueName, inline: true },
-            { name: '⏱️ Duración', value: `${duration} min`, inline: true },
-            { name: '🧙 Campeón', value: champName, inline: true },
+            { name: 'Duración', value: `${duration} min`, inline: true },
+            { name: 'Modo', value: queueName, inline: true },
           )
-          .setThumbnail(`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${participant?.championId}.png`)
-          .setFooter({ text: `Partida en vivo de ${target.username}`, iconURL: target.displayAvatarURL() })
+          .setThumbnail(champId ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champId}.png` : null)
+          .setFooter({ text: target.username, iconURL: target.displayAvatarURL() })
           .setTimestamp();
 
         return interaction.editReply({ embeds: [embed] });
       } catch (e) {
         if (e.response?.status === 404) {
-          return interaction.editReply({ content: `✅ **${game_name}#${tag_line}** no está en partida ahora mismo.` });
+          return interaction.editReply({ content: `**${game_name}#${tag_line}** no está en partida ahora mismo.` });
         }
         console.error('[LOL LIVE]', e.message);
         return interaction.editReply({ content: '❌ Error al consultar partida en vivo.' });
@@ -390,18 +441,36 @@ module.exports = {
 
         const val1 = getRankValue(d1.rankedData);
         const val2 = getRankValue(d2.rankedData);
-        const winner = val1 > val2 ? `🏆 ${r1.rows[0].game_name}` : val2 > val1 ? `🏆 ${r2.rows[0].game_name}` : '🤝 Empate';
+        const winnerLabel = val1 > val2
+          ? `${r1.rows[0].game_name} gana`
+          : val2 > val1
+            ? `${r2.rows[0].game_name} gana`
+            : 'Empate';
 
         const soloDuo1 = d1.rankedData.find(e => e.queueType === 'RANKED_SOLO_5x5');
         const soloDuo2 = d2.rankedData.find(e => e.queueType === 'RANKED_SOLO_5x5');
 
+        const wins1 = d1.matchDetails.filter(m => m.win).length;
+        const wins2 = d2.matchDetails.filter(m => m.win).length;
+        const wr1 = d1.matchDetails.length > 0 ? ((wins1 / d1.matchDetails.length) * 100).toFixed(0) : '0';
+        const wr2 = d2.matchDetails.length > 0 ? ((wins2 / d2.matchDetails.length) * 100).toFixed(0) : '0';
+
         const embed = new EmbedBuilder()
-          .setTitle('⚔️ Comparación de jugadores')
+          .setTitle('Comparación · Solo/Dúo')
           .setColor(0xFEE75C)
+          .setDescription(`**${winnerLabel}**`)
           .addFields(
-            { name: `👤 ${r1.rows[0].game_name}#${r1.rows[0].tag_line}`, value: formatRank(soloDuo1) + `\nNivel ${d1.summoner.summonerLevel}`, inline: true },
-            { name: 'VS', value: winner, inline: true },
-            { name: `👤 ${r2.rows[0].game_name}#${r2.rows[0].tag_line}`, value: formatRank(soloDuo2) + `\nNivel ${d2.summoner.summonerLevel}`, inline: true },
+            {
+              name: `${r1.rows[0].game_name}#${r1.rows[0].tag_line}`,
+              value: formatRank(soloDuo1) + `\nNivel ${d1.summoner.summonerLevel}\nÚlt. 10: **${wr1}% WR**`,
+              inline: true
+            },
+            { name: '\u200B', value: '\u200B', inline: true },
+            {
+              name: `${r2.rows[0].game_name}#${r2.rows[0].tag_line}`,
+              value: formatRank(soloDuo2) + `\nNivel ${d2.summoner.summonerLevel}\nÚlt. 10: **${wr2}% WR**`,
+              inline: true
+            },
           )
           .setTimestamp();
 
@@ -415,10 +484,13 @@ module.exports = {
 
   // ── Botones ────────────────────────────────────────────────────
   async handleButton(interaction) {
-    const [, view, requesterId, targetId] = interaction.customId.split('_');
+    const parts = interaction.customId.split('_');
+    // customId: lol_profile_requesterId_targetId
+    const view = parts[1];
+    const requesterId = parts[2];
+    const targetId = parts[3];
     const riotKey = process.env.RIOT_API_KEY;
 
-    // Solo el que usó el comando puede usar los botones
     if (interaction.user.id !== requesterId) {
       return interaction.reply({ content: '❌ Solo quien usó el comando puede navegar.', flags: MessageFlags.Ephemeral });
     }
@@ -433,55 +505,77 @@ module.exports = {
     const { platform, cluster } = REGIONS[region];
 
     if (view === 'profile') {
-      const data = await getProfileData(game_name, tag_line, region, riotKey);
-      const embed = buildProfileEmbed(game_name, tag_line, region, data, target);
-      const buttons = buildButtons(requesterId, targetId, 'profile');
-      return interaction.editReply({ embeds: [embed], components: [buttons] });
+      try {
+        const data = await getProfileData(game_name, tag_line, region, riotKey);
+        const embed = buildProfileEmbed(game_name, tag_line, region, data, target);
+        const buttons = buildButtons(requesterId, targetId, 'profile');
+        return interaction.editReply({ embeds: [embed], components: [buttons] });
+      } catch (e) {
+        console.error('[LOL BUTTON PROFILE]', e.message);
+      }
     }
 
     if (view === 'historial') {
-      const data = await getProfileData(game_name, tag_line, region, riotKey);
-      const embed = buildHistorialEmbed(game_name, tag_line, data.matchDetails, target);
-      const buttons = buildButtons(requesterId, targetId, 'historial');
-      return interaction.editReply({ embeds: [embed], components: [buttons] });
+      try {
+        const data = await getProfileData(game_name, tag_line, region, riotKey);
+        const embed = buildHistorialEmbed(game_name, tag_line, data.matchDetails, target);
+        const buttons = buildButtons(requesterId, targetId, 'historial');
+        return interaction.editReply({ embeds: [embed], components: [buttons] });
+      } catch (e) {
+        console.error('[LOL BUTTON HISTORIAL]', e.message);
+      }
     }
 
     if (view === 'live') {
       try {
+        const version = await getDDragonVersion();
+        const champMap = await getChampionMap(version);
+
         const accountRes = await axios.get(
           `https://${cluster}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(game_name)}/${encodeURIComponent(tag_line)}`,
           { headers: RIOT_HEADERS(riotKey) }
         );
         const { puuid } = accountRes.data;
+
         const liveRes = await axios.get(
           `https://${platform}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`,
           { headers: RIOT_HEADERS(riotKey) }
         );
+
         const game = liveRes.data;
-        const version = await getDDragonVersion();
-        const champMap = await getChampionMap(version);
         const participant = game.participants.find(p => p.puuid === puuid);
-        const champName = champMap[participant?.championId] || 'Desconocido';
+        const champ = champMap[participant?.championId];
+        const champName = champ?.name || 'Desconocido';
+        const champId = champ?.id || '';
         const duration = Math.floor(game.gameLength / 60);
-        const queueNames = { 420: 'Ranked Solo/Dúo', 440: 'Ranked Flex', 400: 'Normal Draft', 430: 'Normal Ciego', 450: 'ARAM' };
+        const queueNames = {
+          420: 'Ranked Solo/Dúo', 440: 'Ranked Flex', 400: 'Normal Draft',
+          430: 'Normal Ciego', 450: 'ARAM', 900: 'URF', 1020: 'One for All'
+        };
 
         const embed = new EmbedBuilder()
-          .setTitle(`🔴 ${game_name}#${tag_line} está en partida`)
+          .setAuthor({ name: `${game_name}#${tag_line} · En partida` })
           .setColor(0xED4245)
+          .setDescription(`**${champName}** · ${queueNames[game.gameQueueConfigId] || 'Otro modo'}`)
           .addFields(
-            { name: '🎮 Modo', value: queueNames[game.gameQueueConfigId] || 'Otro', inline: true },
-            { name: '⏱️ Duración', value: `${duration} min`, inline: true },
-            { name: '🧙 Campeón', value: champName, inline: true },
+            { name: 'Duración', value: `${duration} min`, inline: true },
+            { name: 'Modo', value: queueNames[game.gameQueueConfigId] || 'Otro', inline: true },
           )
-          .setFooter({ text: `Partida en vivo de ${target.username}`, iconURL: target.displayAvatarURL() })
+          .setThumbnail(champId ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champId}.png` : null)
+          .setFooter({ text: target.username, iconURL: target.displayAvatarURL() })
           .setTimestamp();
 
         const buttons = buildButtons(requesterId, targetId, 'live');
         return interaction.editReply({ embeds: [embed], components: [buttons] });
       } catch (e) {
         if (e.response?.status === 404) {
-          return interaction.editReply({ content: `✅ **${game_name}#${tag_line}** no está en partida.`, embeds: [], components: [] });
+          return interaction.editReply({
+            content: `**${game_name}#${tag_line}** no está en partida ahora mismo.`,
+            embeds: [],
+            components: []
+          });
         }
+        console.error('[LOL BUTTON LIVE]', e.message);
       }
     }
   }

@@ -28,7 +28,7 @@ const rest = new REST().setToken(process.env.TOKEN);
     // Registra los comandos solo en tu servidor de prueba
     console.log(`📡 Registrando ${commands.length} comandos en el servidor de prueba...`);
     await rest.put(
-  Routes.applicationCommands(process.env.CLIENT_ID),
+  Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
   { body: commands }
 );
     console.log('✅ Comandos registrados en el servidor de prueba.');
