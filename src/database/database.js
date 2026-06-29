@@ -16,6 +16,13 @@ async function init() {
       deleted_at BIGINT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS lol_profiles (
+  user_id TEXT PRIMARY KEY,
+  game_name TEXT NOT NULL,
+  tag_line TEXT NOT NULL,
+  region TEXT NOT NULL
+);
+
     CREATE TABLE IF NOT EXISTS guild_settings (
       guild_id TEXT PRIMARY KEY,
       language TEXT DEFAULT 'es',
