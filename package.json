@@ -11,11 +11,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@distube/yt-dlp": "^2.0.1",
     "axios": "^1.18.1",
     "better-sqlite3": "^12.11.1",
     "discord.js": "^14.26.2",
-    "distube": "^5.2.3",
     "dotenv": "^17.4.1",
     "pg": "^8.22.0",
     "sqlite3": "^6.0.1"

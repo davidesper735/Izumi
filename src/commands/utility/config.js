@@ -1,18 +1,17 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const db = require('../../database/database');
+const { pool } = require('../../database/database');
 
-function getSettings(guildId) {
-  return db.prepare(`
-    SELECT * FROM guild_settings WHERE guild_id = ?
-  `).get(guildId);
+async function getSettings(guildId) {
+  const result = await pool.query('SELECT * FROM guild_settings WHERE guild_id = $1', [guildId]);
+  return result.rows[0] || null;
 }
 
-function upsertSetting(guildId, field, value) {
-  const existing = getSettings(guildId);
+async function upsertSetting(guildId, field, value) {
+  const existing = await getSettings(guildId);
   if (existing) {
-    db.prepare(`UPDATE guild_settings SET ${field} = ? WHERE guild_id = ?`).run(value, guildId);
+    await pool.query(`UPDATE guild_settings SET ${field} = $1 WHERE guild_id = $2`, [value, guildId]);
   } else {
-    db.prepare(`INSERT INTO guild_settings (guild_id, ${field}) VALUES (?, ?)`).run(guildId, value);
+    await pool.query(`INSERT INTO guild_settings (guild_id, ${field}) VALUES ($1, $2)`, [guildId, value]);
   }
 }
 
@@ -53,7 +52,7 @@ module.exports = {
       if (!canal.isTextBased()) {
         return interaction.reply({ content: 'El canal debe ser de texto.', flags: MessageFlags.Ephemeral });
       }
-      upsertSetting(guildId, 'log_channel', canal.id);
+      await upsertSetting(guildId, 'log_channel', canal.id);
 
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
@@ -64,7 +63,7 @@ module.exports = {
     }
 
     if (sub === 'logs-off') {
-      upsertSetting(guildId, 'log_channel', null);
+      await upsertSetting(guildId, 'log_channel', null);
 
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
@@ -76,9 +75,8 @@ module.exports = {
 
     if (sub === 'prefix') {
       const prefix = interaction.options.getString('prefix');
-      upsertSetting(guildId, 'language', prefix); // reutilizamos un campo o puedes agregar columna prefix
+      await upsertSetting(guildId, 'prefix', prefix);
 
-      // Nota: agrega columna prefix a la tabla si quieres guardarlo separado
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0x57F287)
@@ -88,6 +86,8 @@ module.exports = {
     }
 
     if (sub === 'prefix-reset') {
+      await upsertSetting(guildId, 'prefix', '#');
+
       const embed = new EmbedBuilder()
         .setTitle('Configuracion actualizada')
         .setColor(0x57F287)

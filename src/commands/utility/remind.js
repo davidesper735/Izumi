@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const db = require('../../database/database');
+const { pool } = require('../../database/database');
 
 function parseTiempo(str) {
   const regex = /^(\d+)(s|m|h|d)$/;
@@ -57,7 +57,7 @@ module.exports = {
   },
 
   async run(context) {
-    const tiempoStr = context.isSlash ? context.args[0] : context.args[0];
+    const tiempoStr = context.args[0];
     const mensaje = context.isSlash ? context.args[1] : context.args.slice(1).join(' ');
 
     if (!tiempoStr || !mensaje) {
@@ -69,22 +69,16 @@ module.exports = {
       return context.reply({ content: 'Formato de tiempo invalido. Usa: `10s`, `5m`, `2h`, `1d`', flags: 64 });
     }
 
-    const MAX = 30 * 24 * 60 * 60 * 1000; // 30 dias
+    const MAX = 30 * 24 * 60 * 60 * 1000;
     if (ms > MAX) {
       return context.reply({ content: 'El maximo es 30 dias.', flags: 64 });
     }
 
     const remindAt = Date.now() + ms;
 
-    db.prepare(`
-      INSERT INTO reminders (user_id, channel_id, guild_id, message, remind_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(
-      context.user.id,
-      context.channel.id,
-      context.guild.id,
-      mensaje,
-      remindAt
+    await pool.query(
+      'INSERT INTO reminders (user_id, channel_id, guild_id, message, remind_at) VALUES ($1, $2, $3, $4, $5)',
+      [context.user.id, context.channel.id, context.guild.id, mensaje, remindAt]
     );
 
     const embed = new EmbedBuilder()
@@ -99,22 +93,26 @@ module.exports = {
 
     context.reply({ embeds: [embed] });
 
-    // Programa el recordatorio
     setTimeout(async () => {
       try {
-        const row = db.prepare('SELECT done FROM reminders WHERE user_id = ? AND remind_at = ?').get(context.user.id, remindAt);
-        if (row?.done) return;
+        const result = await pool.query(
+          'SELECT done FROM reminders WHERE user_id = $1 AND remind_at = $2',
+          [context.user.id, remindAt]
+        );
+        if (result.rows[0]?.done) return;
 
-        const channel = context.channel;
         const embedRecordatorio = new EmbedBuilder()
           .setTitle('Recordatorio')
           .setDescription(`<@${context.user.id}>, te pediste que te recordara:\n\n**${mensaje}**`)
           .setColor(0xFEE75C)
           .setTimestamp();
 
-        await channel.send({ embeds: [embedRecordatorio] });
+        await context.channel.send({ embeds: [embedRecordatorio] });
 
-        db.prepare('UPDATE reminders SET done = 1 WHERE user_id = ? AND remind_at = ?').run(context.user.id, remindAt);
+        await pool.query(
+          'UPDATE reminders SET done = 1 WHERE user_id = $1 AND remind_at = $2',
+          [context.user.id, remindAt]
+        );
       } catch (err) {
         console.error('Error enviando recordatorio:', err);
       }

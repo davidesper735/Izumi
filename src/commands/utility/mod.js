@@ -1,18 +1,15 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { pool } = require('../../database/database');
 
-
-// Reemplaza las funciones al inicio de mod.js
-const db = require('../../database/database');
-
-function getLogsChannel(guild) {
-  const settings = db.prepare('SELECT log_channel FROM guild_settings WHERE guild_id = ?').get(guild.id);
-  const channelId = settings?.log_channel;
+async function getLogsChannel(guild) {
+  const result = await pool.query('SELECT log_channel FROM guild_settings WHERE guild_id = $1', [guild.id]);
+  const channelId = result.rows[0]?.log_channel;
   if (!channelId) return null;
   return guild.channels.cache.get(channelId) || null;
 }
 
 async function sendLog(guild, embed) {
-  const canal = getLogsChannel(guild);
+  const canal = await getLogsChannel(guild);
   if (canal) await canal.send({ embeds: [embed] });
 }
 
@@ -78,14 +75,8 @@ module.exports = {
       const usuario = interaction.options.getUser('usuario');
       const member = interaction.guild.members.cache.get(usuario.id);
 
-      if (!member) {
-        return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
-      }
-
-      if (!member.bannable) {
-        return interaction.reply({ content: 'No puedo banear a este usuario.', flags: MessageFlags.Ephemeral });
-      }
-
+      if (!member) return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
+      if (!member.bannable) return interaction.reply({ content: 'No puedo banear a este usuario.', flags: MessageFlags.Ephemeral });
       if (member.roles.highest.position >= interaction.member.roles.highest.position) {
         return interaction.reply({ content: 'No puedes banear a alguien con un rol igual o superior al tuyo.', flags: MessageFlags.Ephemeral });
       }
@@ -121,14 +112,8 @@ module.exports = {
       const usuario = interaction.options.getUser('usuario');
       const member = interaction.guild.members.cache.get(usuario.id);
 
-      if (!member) {
-        return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
-      }
-
-      if (!member.kickable) {
-        return interaction.reply({ content: 'No puedo expulsar a este usuario.', flags: MessageFlags.Ephemeral });
-      }
-
+      if (!member) return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
+      if (!member.kickable) return interaction.reply({ content: 'No puedo expulsar a este usuario.', flags: MessageFlags.Ephemeral });
       if (member.roles.highest.position >= interaction.member.roles.highest.position) {
         return interaction.reply({ content: 'No puedes expulsar a alguien con un rol igual o superior al tuyo.', flags: MessageFlags.Ephemeral });
       }
@@ -165,14 +150,8 @@ module.exports = {
       const member = interaction.guild.members.cache.get(usuario.id);
       const minutos = interaction.options.getInteger('minutos');
 
-      if (!member) {
-        return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
-      }
-
-      if (!member.moderatable) {
-        return interaction.reply({ content: 'No puedo silenciar a este usuario.', flags: MessageFlags.Ephemeral });
-      }
-
+      if (!member) return interaction.reply({ content: 'No se encontro al usuario en el servidor.', flags: MessageFlags.Ephemeral });
+      if (!member.moderatable) return interaction.reply({ content: 'No puedo silenciar a este usuario.', flags: MessageFlags.Ephemeral });
       if (member.roles.highest.position >= interaction.member.roles.highest.position) {
         return interaction.reply({ content: 'No puedes silenciar a alguien con un rol igual o superior al tuyo.', flags: MessageFlags.Ephemeral });
       }
@@ -212,11 +191,8 @@ module.exports = {
       }
 
       const cantidad = interaction.options.getInteger('cantidad');
-
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
       const mensajes = await interaction.channel.bulkDelete(cantidad, true);
-
       await interaction.editReply({ content: `Se eliminaron ${mensajes.size} mensaje${mensajes.size !== 1 ? 's' : ''} correctamente.` });
 
       const logEmbed = new EmbedBuilder()
