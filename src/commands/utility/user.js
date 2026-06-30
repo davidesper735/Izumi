@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
+  category: 'Información',
   data: new SlashCommandBuilder()
     .setName('user')
     .setDescription('Información de un usuario')

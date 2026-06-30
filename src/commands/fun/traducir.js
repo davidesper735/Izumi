@@ -21,6 +21,7 @@ const idiomas = {
 };
 
 module.exports = {
+  category: 'Utilidad',
   data: new SlashCommandBuilder()
     .setName('traducir')
     .setDescription('Traduce texto a cualquier idioma')

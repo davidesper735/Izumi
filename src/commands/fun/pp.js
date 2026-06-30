@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
+  category: 'Diversión',
   data: new SlashCommandBuilder()
     .setName('pp')
     .setDescription('Mide el pp de un usuario')

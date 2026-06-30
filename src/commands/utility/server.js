@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ChannelType } = require('discord.js');
 
 module.exports = {
+  category: 'Información',
   data: new SlashCommandBuilder()
     .setName('server')
     .setDescription('Información del servidor')

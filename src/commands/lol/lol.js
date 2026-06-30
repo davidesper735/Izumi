@@ -221,6 +221,7 @@ function buildButtons(userId, targetId, view) {
 }
 
 module.exports = {
+  category: 'League of Legends',
   data: new SlashCommandBuilder()
     .setName('lol')
     .setDescription('Comandos de League of Legends')
@@ -278,6 +279,39 @@ module.exports = {
         .addUserOption(opt =>
           opt.setName('jugador2').setDescription('Segundo jugador').setRequired(true)
         )
+    )
+    .addSubcommand(sub =>
+      sub.setName('search')
+        .setDescription('Busca cualquier cuenta de League of Legends')
+        .addStringOption(opt =>
+          opt.setName('usuario')
+            .setDescription('Riot ID (ejemplo: Nombre#TAG)')
+            .setRequired(true)
+            .setAutocomplete(true)  // ← agregado
+        )
+        .addStringOption(opt =>
+          opt.setName('region')
+            .setDescription('Región de la cuenta')
+            .setRequired(true)
+            .addChoices(
+              { name: 'NA', value: 'na' },
+              { name: 'EUW', value: 'euw' },
+              { name: 'EUNE', value: 'eune' },
+              { name: 'KR', value: 'kr' },
+              { name: 'BR', value: 'br' },
+              { name: 'LAN', value: 'lan' },
+              { name: 'LAS', value: 'las' },
+              { name: 'JP', value: 'jp' },
+              { name: 'OCE', value: 'oce' },
+              { name: 'TR', value: 'tr' },
+              { name: 'RU', value: 'ru' },
+            )
+        )
+    )
+
+    .addSubcommand(sub =>
+      sub.setName('unlink')
+        .setDescription('Desvincula tu cuenta de League of Legends')
     ),
 
   async execute(interaction) {
@@ -485,8 +519,109 @@ module.exports = {
         return interaction.editReply({ content: '❌ Error al comparar perfiles.' });
       }
     }
+
+    // ── /lol search ────────────────────────────────────────────────
+    if (sub === 'search') {
+      await interaction.deferReply();
+
+      const input = interaction.options.getString('usuario');
+      const region = interaction.options.getString('region');
+
+      if (!input.includes('#')) {
+        return interaction.editReply({ content: '❌ Formato: `Nombre#TAG`' });
+      }
+
+      const [gameName, tagLine] = input.split('#');
+
+      try {
+        const data = await getProfileData(gameName, tagLine, region, riotKey);
+
+        // Revisa si esta cuenta ya está vinculada a algún usuario de Discord
+        const linked = await pool.query(
+          'SELECT user_id FROM lol_profiles WHERE LOWER(game_name) = LOWER($1) AND LOWER(tag_line) = LOWER($2) AND region = $3',
+          [gameName, tagLine, region]
+        );
+
+        // Pseudo-usuario para reusar buildProfileEmbed (footer, avatar)
+        const fakeUser = linked.rows.length
+          ? await interaction.client.users.fetch(linked.rows[0].user_id)
+          : { username: 'Cuenta no vinculada', displayAvatarURL: () => null };
+
+        const embed = buildProfileEmbed(gameName, tagLine, region, data, fakeUser);
+
+        if (linked.rows.length) {
+          embed.setFooter({ text: `Vinculado a ${fakeUser.username}`, iconURL: fakeUser.displayAvatarURL() ?? undefined });
+        } else {
+          embed.setFooter({ text: 'Cuenta no vinculada a ningún Discord' });
+        }
+
+        return interaction.editReply({ embeds: [embed] });
+      } catch (e) {
+        if (e.response?.status === 404) {
+          return interaction.editReply({ content: '❌ No se encontró esa cuenta de Riot.' });
+        }
+        console.error('[LOL SEARCH]', e.message);
+        return interaction.editReply({ content: '❌ Error al buscar la cuenta.' });
+      }
+    }
+
+    // ── /lol unlink ───────────────────────────────────────────────
+    if (sub === 'unlink') {
+      const result = await pool.query('SELECT * FROM lol_profiles WHERE user_id = $1', [interaction.user.id]);
+
+      if (!result.rows.length) {
+        return interaction.reply({
+          content: '❌ No tienes ninguna cuenta vinculada.',
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const { game_name, tag_line } = result.rows[0];
+
+      await pool.query('DELETE FROM lol_profiles WHERE user_id = $1', [interaction.user.id]);
+
+      const embed = new EmbedBuilder()
+        .setTitle('Cuenta desvinculada')
+        .setColor(0xED4245)
+        .setDescription(`Se desvinculó **${game_name}#${tag_line}** de tu cuenta de Discord.`)
+        .setFooter({ text: 'Puedes volver a vincular con /lol settings' })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
   },
 
+   async autocomplete(interaction) {
+    const focused = interaction.options.getFocused().toLowerCase();
+    const commands = [...interaction.client.commands.values()]
+      .filter(c => c.data?.name && c.data?.description)
+      .filter((c, i, arr) => arr.findIndex(x => x.data.name === c.data.name) === i);
+
+    const entries = [];
+
+    for (const c of commands) {
+      const json = c.data.toJSON();
+      const subs = json.options?.filter(o => o.type === 1) || [];
+
+      if (subs.length) {
+        // Tiene subcomandos: solo sugiere "comando subcomando"
+        for (const sub of subs) {
+          entries.push(`${json.name} ${sub.name}`);
+        }
+      } else {
+        // Sin subcomandos: sugiere el comando solo
+        entries.push(json.name);
+      }
+    }
+
+    const matches = entries
+      .filter(name => name.toLowerCase().includes(focused))
+      .slice(0, 25)
+      .map(name => ({ name, value: name }));
+
+    return interaction.respond(matches);
+  },
+  
   // ── Botones ────────────────────────────────────────────────────
   async handleButton(interaction) {
     const parts = interaction.customId.split('_');

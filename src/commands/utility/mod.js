@@ -14,6 +14,7 @@ async function sendLog(guild, embed) {
 }
 
 module.exports = {
+  category: 'Moderación',
   data: new SlashCommandBuilder()
     .setName('mod')
     .setDescription('Comandos de moderacion')

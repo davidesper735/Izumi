@@ -16,6 +16,7 @@ const respuestas8ball = [
 ];
 
 module.exports = {
+  category: 'Diversión',
   data: new SlashCommandBuilder()
     .setName('fun')
     .setDescription('Comandos de entretenimiento')

@@ -26,6 +26,7 @@ function formatTiempo(ms) {
 }
 
 module.exports = {
+  category: 'Utilidad',
   data: new SlashCommandBuilder()
     .setName('remind')
     .setDescription('Te recuerda algo despues de un tiempo')

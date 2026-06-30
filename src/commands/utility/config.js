@@ -16,6 +16,7 @@ async function upsertSetting(guildId, field, value) {
 }
 
 module.exports = {
+  category: 'Configuración',
   data: new SlashCommandBuilder()
     .setName('config')
     .setDescription('Configuracion del bot')

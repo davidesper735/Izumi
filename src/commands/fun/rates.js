@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
+  category: 'Diversión',
   data: new SlashCommandBuilder()
     .setName('rates')
     .setDescription('Le da un porcentaje aleatorio a cualquier cosa')

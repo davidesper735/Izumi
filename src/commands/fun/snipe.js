@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { pool } = require('../../database/database');
 
 module.exports = {
+  category: 'Utilidad',
   data: new SlashCommandBuilder()
     .setName('snipe')
     .setDescription('Muestra el ultimo mensaje eliminado en el canal'),

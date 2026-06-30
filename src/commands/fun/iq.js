@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
+  category: 'Diversión',
   data: new SlashCommandBuilder()
     .setName('iq')
     .setDescription('Calcula el IQ de un usuario')

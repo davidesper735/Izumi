@@ -124,6 +124,7 @@ async function sendInteraction(context, sub, autor, target) {
 
 module.exports = {
   data: builder,
+  category: 'Interacción',
 
   async execute(interaction) {
     const sub = interaction.options.getSubcommand();
