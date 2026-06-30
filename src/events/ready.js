@@ -57,20 +57,21 @@ module.exports = {
 
     // ── Aviso de expiración de API key de Riot ────────────────────
     try {
-      if (!process.env.RIOT_KEY_GENERATED_AT || !process.env.DEV_CHANNEL_ID || !process.env.DEV_USER_ID) {
-        console.warn('[RIOT] Faltan variables de entorno para el aviso de API key (RIOT_KEY_GENERATED_AT, DEV_CHANNEL_ID, DEV_USER_ID)');
+      if (!process.env.RIOT_KEY_EXPIRES_AT || !process.env.DEV_CHANNEL_ID || !process.env.DEV_USER_ID) {
+        console.warn('[RIOT] Faltan variables de entorno para el aviso de API key (RIOT_KEY_EXPIRES_AT, DEV_CHANNEL_ID, DEV_USER_ID)');
         return;
       }
 
-      const generated = new Date(process.env.RIOT_KEY_GENERATED_AT);
+      const expiresAt = new Date(process.env.RIOT_KEY_EXPIRES_AT);
 
-      if (isNaN(generated.getTime())) {
-        console.warn('[RIOT] RIOT_KEY_GENERATED_AT tiene un formato inválido. Usa ISO 8601, ej: 2026-06-29T16:00:00');
+      if (isNaN(expiresAt.getTime())) {
+        console.warn('[RIOT] RIOT_KEY_EXPIRES_AT tiene un formato inválido. Usa ISO 8601, ej: 2026-06-30T09:03:00-07:00');
         return;
       }
 
-      const expiresAt = new Date(generated.getTime() + 24 * 60 * 60 * 1000);
       const msUntilWarning = expiresAt.getTime() - Date.now() - 60 * 60 * 1000;
+      const horasRestantes = (expiresAt.getTime() - Date.now()) / 1000 / 60 / 60;
+      console.log(`[RIOT] API key expira en ${horasRestantes.toFixed(1)} horas.`);
 
       const sendWarning = async (msg) => {
         const channel = await client.channels.fetch(process.env.DEV_CHANNEL_ID);
@@ -79,7 +80,7 @@ module.exports = {
       };
 
       if (msUntilWarning > 0) {
-        console.log(`[RIOT] API key válida. Aviso en ${Math.round(msUntilWarning / 1000 / 60)} minutos.`);
+        console.log(`[RIOT] Aviso programado en ${Math.round(msUntilWarning / 1000 / 60)} minutos.`);
         setTimeout(() => {
           sendWarning(`⚠️ <@${process.env.DEV_USER_ID}> La API key de Riot expira en ~1 hora. Renuévala en https://developer.riotgames.com`);
         }, msUntilWarning);
