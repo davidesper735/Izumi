@@ -315,20 +315,24 @@ module.exports = {
     ),
 
   async execute(interaction) {
+
+    if (!interaction.isChatInputCommand()) return;
+
     const sub = interaction.options.getSubcommand();
     const riotKey = process.env.RIOT_API_KEY;
 
     // ── /lol settings ──────────────────────────────────────────────
-    if (sub === 'settings') {
+     if (sub === 'settings') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // ← primero
+
       const input = interaction.options.getString('usuario');
       const region = interaction.options.getString('region');
 
       if (!input.includes('#')) {
-        return interaction.reply({ content: '❌ Formato: `Nombre#TAG`', flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: '❌ Formato: `Nombre#TAG`' }); // editReply, no reply
       }
 
       const [gameName, tagLine] = input.split('#');
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
         const { cluster } = REGIONS[region];
