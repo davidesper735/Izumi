@@ -1,6 +1,24 @@
 const { EmbedBuilder, ActivityType } = require('discord.js');
 const { pool } = require('../database/database');
 
+const CHANNEL_ID = '1496010559324422174';
+const USER_ID = '943920625376968746';
+
+function getMsHastaProximo29() {
+  const ahora = new Date();
+  const offsetMs = -5 * 60 * 60 * 1000;
+  const ahoraGMT5 = new Date(ahora.getTime() + offsetMs);
+
+  const proxima = new Date(ahoraGMT5);
+  proxima.setMinutes(29, 0, 0);
+
+  if (ahoraGMT5.getMinutes() >= 29) {
+    proxima.setHours(proxima.getHours() + 1);
+  }
+
+  return proxima.getTime() - ahoraGMT5.getTime();
+}
+
 module.exports = {
   name: 'clientReady',
   once: true,
@@ -91,5 +109,16 @@ module.exports = {
     } catch (err) {
       console.error('[RIOT] Error configurando aviso de API key:', err);
     }
+
+    // ── Notificacion rolea cada hora a los :29 ────────────────────
+    const msHasta29 = getMsHastaProximo29();
+    console.log(`Notificacion rolea en ${Math.round(msHasta29 / 1000 / 60)} minutos.`);
+
+    setTimeout(() => {
+      client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
+      setInterval(() => {
+        client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
+      }, 60 * 60 * 1000);
+    }, msHasta29);
   }
 };
