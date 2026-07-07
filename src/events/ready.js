@@ -4,15 +4,15 @@ const { pool } = require('../database/database');
 const CHANNEL_ID = '1496010559324422174';
 const USER_ID = '943920625376968746';
 
-function getMsHastaProximo35() {
+function getMsHastaProximo25() {
   const ahora = new Date();
   const offsetMs = -5 * 60 * 60 * 1000;
   const ahoraGMT5 = new Date(ahora.getTime() + offsetMs);
 
   const proxima = new Date(ahoraGMT5);
-  proxima.setMinutes(35, 0, 0);
+  proxima.setMinutes(25, 0, 0);
 
-  if (ahoraGMT5.getMinutes() >= 35) {
+  if (ahoraGMT5.getMinutes() >= 25) {
     proxima.setHours(proxima.getHours() + 1);
   }
 
@@ -110,15 +110,15 @@ module.exports = {
       console.error('[RIOT] Error configurando aviso de API key:', err);
     }
 
-    // ── Notificacion rolea cada hora a los :35 ────────────────────
-    const msHasta35 = getMsHastaProximo35();
-    console.log(`Notificacion rolea en ${Math.round(msHasta35 / 1000 / 60)} minutos.`);
+    // ── Notificacion rolea cada hora a los :25 ────────────────────
+    const msHasta25 = getMsHastaProximo25();
+    console.log(`Notificacion rolea en ${Math.round(msHasta25 / 1000 / 60)} minutos.`);
 
     setTimeout(() => {
       client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
       setInterval(() => {
         client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
       }, 60 * 60 * 1000);
-    }, msHasta35);
+    }, msHasta25);
   }
 };
