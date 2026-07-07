@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const os = require('os');
 
 module.exports = {
-  category: 'Diversión',
+  category: 'Utilidad',
   data: new SlashCommandBuilder()
     .setName('bot')
     .setDescription('Información del bot')
