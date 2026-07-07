@@ -4,15 +4,15 @@ const { pool } = require('../database/database');
 const CHANNEL_ID = '1496010559324422174';
 const USER_ID = '943920625376968746';
 
-function getMsHastaProximo29() {
+function getMsHastaProximo31() {
   const ahora = new Date();
   const offsetMs = -5 * 60 * 60 * 1000;
   const ahoraGMT5 = new Date(ahora.getTime() + offsetMs);
 
   const proxima = new Date(ahoraGMT5);
-  proxima.setMinutes(29, 0, 0);
+  proxima.setMinutes(31, 0, 0);
 
-  if (ahoraGMT5.getMinutes() >= 29) {
+  if (ahoraGMT5.getMinutes() >= 31) {
     proxima.setHours(proxima.getHours() + 1);
   }
 
@@ -111,14 +111,14 @@ module.exports = {
     }
 
     // ── Notificacion rolea cada hora a los :29 ────────────────────
-    const msHasta29 = getMsHastaProximo29();
-    console.log(`Notificacion rolea en ${Math.round(msHasta29 / 1000 / 60)} minutos.`);
+    const msHasta31 = getMsHastaProximo31();
+console.log(`Notificacion rolea en ${Math.round(msHasta31 / 1000 / 60)} minutos.`);
 
-    setTimeout(() => {
-      client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
-      setInterval(() => {
-        client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
-      }, 60 * 60 * 1000);
-    }, msHasta29);
+setTimeout(() => {
+  client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
+  setInterval(() => {
+    client.channels.fetch(CHANNEL_ID).then(ch => ch?.send(`rolea hijo de puta <@${USER_ID}>`));
+  }, 60 * 60 * 1000);
+}, msHasta31);
   }
 };
