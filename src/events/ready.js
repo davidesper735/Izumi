@@ -74,19 +74,15 @@ module.exports = {
     }
 
     // ── Aviso de expiración de API key de Riot ────────────────────
-    try {
-      if (!process.env.RIOT_KEY_EXPIRES_AT || !process.env.DEV_CHANNEL_ID || !process.env.DEV_USER_ID) {
-        console.warn('[RIOT] Faltan variables de entorno para el aviso de API key (RIOT_KEY_EXPIRES_AT, DEV_CHANNEL_ID, DEV_USER_ID)');
-        return;
-      }
+try {
+  if (!process.env.RIOT_KEY_EXPIRES_AT || !process.env.DEV_CHANNEL_ID || !process.env.DEV_USER_ID) {
+    console.warn('[RIOT] Faltan variables de entorno para el aviso de API key.');
+  } else {
+    const expiresAt = new Date(process.env.RIOT_KEY_EXPIRES_AT);
 
-      const expiresAt = new Date(process.env.RIOT_KEY_EXPIRES_AT);
-
-      if (isNaN(expiresAt.getTime())) {
-        console.warn('[RIOT] RIOT_KEY_EXPIRES_AT tiene un formato inválido. Usa ISO 8601, ej: 2026-06-30T09:03:00-07:00');
-        return;
-      }
-
+    if (isNaN(expiresAt.getTime())) {
+      console.warn('[RIOT] RIOT_KEY_EXPIRES_AT tiene un formato inválido.');
+    } else {
       const msUntilWarning = expiresAt.getTime() - Date.now() - 60 * 60 * 1000;
       const horasRestantes = (expiresAt.getTime() - Date.now()) / 1000 / 60 / 60;
       console.log(`[RIOT] API key expira en ${horasRestantes.toFixed(1)} horas.`);
@@ -106,10 +102,11 @@ module.exports = {
         console.warn('[RIOT] La API key puede haber expirado ya.');
         sendWarning(`⚠️ <@${process.env.DEV_USER_ID}> La API key de Riot puede haber expirado. Verifícala en https://developer.riotgames.com`);
       }
-    } catch (err) {
-      console.error('[RIOT] Error configurando aviso de API key:', err);
     }
-
+  }
+} catch (err) {
+  console.error('[RIOT] Error configurando aviso de API key:', err);
+}
     // ── Notificacion rolea cada hora a los :25 ────────────────────
     const msHasta25 = getMsHastaProximo25();
     console.log(`Notificacion rolea en ${Math.round(msHasta25 / 1000 / 60)} minutos.`);
