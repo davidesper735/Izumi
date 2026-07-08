@@ -73,9 +73,14 @@ async function main() {
     console.error('Error no manejado:', error);
   });
 
-  client.login(process.env.TOKEN).catch(err => {
-  console.error('❌ Error al hacer login:', err);
-  process.exit(1);
+  console.log('TOKEN presente:', !!process.env.TOKEN);
+console.log('TOKEN longitud:', process.env.TOKEN?.length);
+
+client.login(process.env.TOKEN)
+  .then(() => console.log('✅ Login exitoso'))
+  .catch(err => {
+    console.error('❌ Error de login:', err.message);
+    process.exit(1);
 });
 }
 
